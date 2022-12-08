@@ -1,58 +1,85 @@
 #!/usr/bin/python3
-"""
-Test for DataBase Storage
-"""
-from os import getenv
+"""test for file storage"""
 import unittest
 import pep8
+import json
 import os
+from os import getenv
 import MySQLdb
-import sqlalchemy
+from models.base_model import BaseModel, Base
+from models.user import User
+from models.state import State
+from models.city import City
+from models.amenity import Amenity
+from models.place import Place
+from models.review import Review
 from models.engine.db_storage import DBStorage
 
 
-class TestDB(unittest.TestCase):
-    """
-    Unittest for database storage
-    """
+@unittest.skipIf(getenv("HBNB_TYPE_STORAGE") != 'db', 'NO DB')
+class TestDBStorage(unittest.TestCase):
+    '''this will test the DBStorage'''
 
-    @unittest.skipIf(os.getenv("HBNB_TYPE_STORAGE") != 'db',
-                     "Test only for DBstorage")
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
         """set up for test"""
-        if os.getenv("HBNB_TYPE_STORAGE") == 'db':
-            self.db = MySQLdb.connect(os.getenv("HBNB_MYSQL_HOST"),
-                                      os.getenv("HBNB_MYSQL_USER"),
-                                      os.getenv("HBNB_MYSQL_PWD"),
-                                      os.getenv("HBNB_MYSQL_DB"))
-            self.cursor = self.db.cursor()
+        self.User = getenv("HBNB_MYSQL_USER")
+        self.Passwd = getenv("HBNB_MYSQL_PWD")
+        self.Db = getenv("HBNB_MYSQL_DB")
+        self.Host = getenv("HBNB_MYSQL_HOST")
+        self.db = MySQLdb.connect(host=self.Host, user=self.User,
+                                  passwd=self.Passwd, db=self.Db,
+                                  charset="utf8")
+        self.query = self.db.cursor()
+        self.storage = DBStorage()
+        self.storage.reload()
 
-    @unittest.skipIf(os.getenv("HBNB_TYPE_STORAGE") != 'db',
-                     "Test only for DBstorage")
-    def tearDown(self):
-        """teardown"""
-        if os.getenv("HBNB_TYPE_STORAGE") == 'db':
-            self.db.close()
+    @classmethod
+    def teardown(self):
+        """at the end of the test this will tear it down"""
+        self.query.close()
+        self.db.close()
 
-    @unittest.skipIf(os.getenv("HBNB_TYPE_STORAGE") != 'db',
-                     "Test only for DBstorage")
+    @unittest.skipIf(getenv("HBNB_TYPE_STORAGE") != 'db', 'NO DB')
     def test_pep8_DBStorage(self):
-        """Tests pep8 style"""
+        """Test Pep8"""
         style = pep8.StyleGuide(quiet=True)
         p = style.check_files(['models/engine/db_storage.py'])
         self.assertEqual(p.total_errors, 0, "fix pep8")
 
-    @unittest.skipIf(getenv("HBNB_TYPE_STORAGE") != 'db',
-                     "Test only for DBstorage")
-    def test_attributes_DBStorage(self):
-        """Test the methods"""
-        self.assertTrue(hasattr(DBStorage, '_DBStorage__engine'))
-        self.assertTrue(hasattr(DBStorage, '_DBStorage__session'))
-        self.assertTrue(hasattr(DBStorage, 'new'))
-        self.assertTrue(hasattr(DBStorage, 'save'))
-        self.assertTrue(hasattr(DBStorage, 'all'))
-        self.assertTrue(hasattr(DBStorage, 'delete'))
-        self.assertTrue(hasattr(DBStorage, 'reload'))
+    @unittest.skipIf(getenv("HBNB_TYPE_STORAGE") != 'db', 'NO DB')
+    def test_read_tables(self):
+        """existing tables"""
+        self.query.execute("SHOW TABLES")
+        salida = self.query.fetchall()
+        self.assertEqual(len(salida), 7)
+
+    @unittest.skipIf(getenv("HBNB_TYPE_STORAGE") != 'db', 'NO DB')
+    def test_no_element_user(self):
+        """no elem in users"""
+        self.query.execute("SELECT * FROM users")
+        salida = self.query.fetchall()
+        self.assertEqual(len(salida), 0)
+
+    @unittest.skipIf(getenv("HBNB_TYPE_STORAGE") != 'db', 'NO DB')
+    def test_no_element_cities(self):
+        """no elem in cities"""
+        self.query.execute("SELECT * FROM cities")
+        salida = self.query.fetchall()
+        self.assertEqual(len(salida), 0)
+
+    @unittest.skipIf(getenv("HBNB_TYPE_STORAGE") != 'db', 'NO DB')
+    def test_add(self):
+        """Test same size between storage() and existing db"""
+        self.query.execute("SELECT * FROM states")
+        salida = self.query.fetchall()
+        self.assertEqual(len(salida), 0)
+        state = State(name="LUISILLO")
+        state.save()
+        self.db.autocommit(True)
+        self.query.execute("SELECT * FROM states")
+        salida = self.query.fetchall()
+        self.assertEqual(len(salida), 1)
 
 if __name__ == "__main__":
     unittest.main()
